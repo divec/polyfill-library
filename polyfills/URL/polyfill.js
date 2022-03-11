@@ -66,18 +66,44 @@
 		//
 		// https://url.spec.whatwg.org/#percent-decode
 		function percent_decode(bytes) {
-			// NOTE:
-			// * Only decode pairs of exactly two bytes.
-			// * Only decode bytes in range 0-9, A-F, a-f.
-			// * Decode as many pairs at the same time as possible.
-			//   This is because we're not actually operating on internal bytes,
-			//   but on a valid UTF string, and the string must remain valid at
-			//   all times, and decodeURIComponent will throw when attempting to
-			//   decode a byte that represents only part of a codepoint, for example
-			//   "%7F" separately from "%7F%C3%BF".
-			return bytes.replace(/((%[0-9A-Fa-f]{2})*)/g, function (_, m) {
-				return decodeURIComponent(m);
-			});
+			var uContinuation, u1Bytes, u2Bytes, u3Bytes, u4Bytes, anyByte, pattern;
+
+			// In a UTF-8 multibyte sequence, non-initial bytes are always between %80 and %BF
+			uContinuation = '%[89AB][0-9A-F]'
+
+			// The length of a UTF-8 sequence is specified by the first byte
+
+			// One-byte sequences: 0xxxxxxx
+			// So the byte is between %00 and %7F
+			u1Bytes = '%[0-7][0-9A-F]';
+
+			// Two-byte sequences: 110xxxxx 10xxxxxx
+			// So the first byte is between %C0 and %DF
+			u2Bytes = '%[CD][0-9A-F]' + uContinuation;
+
+			// Three-byte sequences: 1110xxxx 10xxxxxx 10xxxxxx
+			// So the first byte is between %E0 and %EF
+			u3Bytes = '%E[0-9A-F]' + uContinuation + uContinuation;
+
+			// Four-byte sequences: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+			// So the first byte is between %F0 and %F7
+			u4Bytes = '%F[0-7]' + uContinuation + uContinuation +uContinuation;
+
+			anyByte = '%[0-9A-F][0-9A-F]';
+
+			// Match some consecutive percent-escaped bytes. More precisely, match
+			// 1-4 bytes that validly encode one character in UTF-8, or 1 byte that
+			// would be invalid in UTF-8 in this location.
+			pattern = new RegExp(
+				'(' + u4Bytes + ')|(' + u3Bytes + ')|(' + u2Bytes + ')|(' + u1Bytes + ')|(' + anyByte + ')',
+				'gi'
+			);
+			return bytes.replace(pattern, function (match, u4, u3, u2, u1, uBad) {
+				if (uBad !== undefined) {
+					return '\uFFFD';
+				}
+				return decodeURIComponent(match);
+			} );
 		}
 
 		// NOTE: Doesn't do the encoding/decoding dance

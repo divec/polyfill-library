@@ -472,6 +472,18 @@ describe('WPT tests', function () {
 		proclaim.ok(params != null, 'constructor returned non-null value.');
 		proclaim.ok(params.has('b'), 'Search params object has name "b"');
 		proclaim.equal(params.get('b'), '%*');
+
+		params = new URLSearchParams('b=%X_%40_%96_%C3%A2_%E4%B8%80_%F0%A8%8B%A2_%E4_%F0_%21_%E4%E4%E4%E4');
+		proclaim.ok(params != null, 'constructor returned non-null value.');
+		proclaim.ok(params.has('b'), 'Search params object has name "b"');
+		proclaim.equal(params.get('b'), '%X_@_\uFFFD_\u00E2_\u4E00_\uD860\uDEE2_\uFFFD_\uFFFD_\uFFFD_!qqqqqq');
+
+		params = new URLSearchParams('b=%E4%B8');
+		proclaim.ok(params != null, 'constructor returned non-null value.');
+		proclaim.ok(params.has('b'), 'Search params object has name "b"');
+		// TODO: Chrome/Firefox makes one replacement character in this case, whereas our code makes two.
+		// (This is the first two bytes of a 3-byte UTF-8 sequence).
+		proclaim.equal(params.get('b'), '\uFFFD\uFFFD');
 	});
 
 	it('constructs from URLSearchParams', function() {
